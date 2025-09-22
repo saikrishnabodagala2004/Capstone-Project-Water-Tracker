@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
@@ -68,3 +69,14 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 ### `npm run build` fails to minify
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+=======
+# Capstone-Project-Water-Tracker
+The Water Footprint Tracker is a web application that helps users understand the water consumption impact of everyday products such as food, beverages, and clothing. It raises awareness about sustainable usage of freshwater resources by providing easily accessible data on the water footprint of items we use in daily life.
+## Tools
+Tech Stack
+- Frontend: React.js
+- Backend/Database: Firebase Firestore
+- Authentication: Firebase Auth
+- Hosting: Firebase Hosting
+- Tools & Libraries: React Router, Firestore SDK, GitHub
+>>>>>>> 9be64b11182253961a71686b5ec47c1bd7f90a5a
