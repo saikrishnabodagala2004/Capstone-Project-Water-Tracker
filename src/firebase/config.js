@@ -4,15 +4,15 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
-// Your Firebase configuration
+// Your Firebase configuration now reads from environment variables
 const firebaseConfig = {
-  apiKey: "AIzaSyBTuOWVUj4z5jOsWk-JLRjytjKiln-nr3E",
-  authDomain: "water-footprint-tracker-c7a85.firebaseapp.com",
-  projectId: "water-footprint-tracker-c7a85",
-  storageBucket: "water-footprint-tracker-c7a85.appspot.com",
-  messagingSenderId: "456217384343",
-  appId: "1:456217384343:web:d11f03c9c11b898bf760d2",
-  measurementId: "G-1GC3921QB4"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase
