@@ -1,9 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { db } from "../firebase/config";
 import { collection, getDocs } from "firebase/firestore";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
+
+// ✅ Auth
+import { auth } from "../firebase/config";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 
 const glassStyle = {
   background: "rgba(255, 255, 255, 0.18)",
@@ -24,7 +28,7 @@ function unitLabel(unit) {
   return "count";
 }
 
-function Home() {
+export default function Home() {
   const [items, setItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItems, setSelectedItems] = useState([]); // [{...item, qty}]
@@ -32,6 +36,11 @@ function Home() {
   const [dateTime, setDateTime] = useState(new Date());
   const [tip, setTip] = useState("");
   const [quote, setQuote] = useState("");
+
+  // 👤 Auth state
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const navigate = useNavigate();
 
   const tips = [
     "💡 A cotton shirt needs ~2700 L of water to make.",
@@ -47,6 +56,18 @@ function Home() {
     "🌿 Be the change you want to see.",
     "♻️ The future depends on what we do today."
   ];
+
+  // 🔐 Auth bootstrap + subscription
+  useEffect(() => {
+    // Set immediate value so header doesn't flash Login/Signup incorrectly
+    setUser(auth.currentUser || null);
+    // Now subscribe to future changes
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u || null);
+      setAuthLoading(false);
+    });
+    return () => unsub();
+  }, []);
 
   // load data + restore today's selection
   useEffect(() => {
@@ -144,37 +165,32 @@ function Home() {
   };
   const clearAll = () => persist([]);
 
-  // Draws a professional-looking signature block (no external image)
+  // Signature block (vector) for PDF
   const drawSignatureBlock = (doc, x, y, name = "Sai Krishna", title = "Authorized Signatory") => {
-    // signature line
     doc.setDrawColor(40, 40, 40);
     doc.setLineWidth(0.5);
     doc.line(x, y, x + 55, y);
 
-    // cursive-like name
     doc.setFont("times", "italic");
     doc.setFontSize(12);
     doc.text(name, x + 1, y - 2);
 
-    // title
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.text(title, x + 1, y + 6);
 
-    // small seal
     const cx = x + 80, cy = y - 2;
     doc.setDrawColor(25, 94, 192);
     doc.setLineWidth(0.6);
-    doc.circle(cx, cy, 9);           // outer ring
+    doc.circle(cx, cy, 9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(25, 94, 192);
     doc.setFontSize(9);
     doc.text("VERIFIED", cx, cy + 2, { align: "center" });
-    // reset text color
     doc.setTextColor(0, 0, 0);
   };
 
-  // PDF generator with QR + signature vector block
+  // PDF with QR + signature
   const generatePDF = async () => {
     const now = new Date();
     const dateStr = now.toLocaleDateString();
@@ -183,7 +199,6 @@ function Home() {
 
     const doc = new jsPDF();
 
-    // Header
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
     doc.text("Water Footprint Report", 14, 18);
@@ -193,7 +208,6 @@ function Home() {
     doc.text(`Date: ${dateStr}   Time: ${timeStr}`, 14, 26);
     doc.text(`Verification ID: ${verificationId}`, 14, 33);
 
-    // Table-ish list
     let y = 45;
     doc.setFont("helvetica", "bold");
     doc.text("Items Used Today", 14, y);
@@ -204,7 +218,6 @@ function Home() {
       doc.text("No items logged today.", 14, y);
       y += 10;
     } else {
-      // header row
       doc.setFont("helvetica", "bold");
       doc.text("No.", 14, y);
       doc.text("Item", 24, y);
@@ -239,22 +252,18 @@ function Home() {
     doc.line(14, y, 196, y);
     y += 8;
 
-    // Total
     doc.setFont("helvetica", "bold");
     doc.text(`Total Water Footprint: ${totalFootprint.toLocaleString()} L`, 14, y);
     y += 12;
 
-    // QR code (encodes verification + date/time)
     const qrPayload =
       `Water Footprint Tracker\nVerification ID: ${verificationId}\n` +
       `Date: ${dateStr} ${timeStr}\nTotal: ${totalFootprint} L`;
     const qrDataURL = await QRCode.toDataURL(qrPayload);
     doc.addImage(qrDataURL, "PNG", 150, y - 6, 40, 40);
 
-    // Signature block (vector)
     drawSignatureBlock(doc, 14, y + 20, "Sai Krishna", "Authorized Signatory");
 
-    // Footer note
     const footY = y + 48;
     doc.setFont("helvetica", "italic");
     doc.setFontSize(10);
@@ -265,9 +274,19 @@ function Home() {
       { maxWidth: 180 }
     );
 
-    // Save
     const filename = `Water_Footprint_Report_${dateStr.replace(/\//g, "-")}.pdf`;
     doc.save(filename);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setUser(null);
+      navigate("/login");
+    } catch (e) {
+      console.error("Logout failed:", e);
+      alert("Logout failed. Try again.");
+    }
   };
 
   return (
@@ -275,9 +294,32 @@ function Home() {
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <h2 style={{ color: "#2c3e50", margin: 0 }}>💧 Water Footprint Tracker</h2>
-        <p style={{ color: "#34495e", fontWeight: 600, margin: 0 }}>
-          {dateTime.toLocaleDateString()} | {dateTime.toLocaleTimeString()}
-        </p>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <p style={{ color: "#34495e", fontWeight: 600, margin: 0 }}>
+            {dateTime.toLocaleDateString()} | {dateTime.toLocaleTimeString()}
+          </p>
+
+          {/* 👤 Auth area */}
+          {authLoading ? null : user ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ color: "#2c3e50" }}>
+                Hi, <b>{user.displayName || user.email}</b>
+              </span>
+              <button
+                onClick={handleLogout}
+                style={{ padding: "6px 10px", borderRadius: 6, border: "none", background: "#e74c3c", color: "#fff", cursor: "pointer" }}
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Link to="/login" style={{ textDecoration: "none", color: "#2d98da", fontWeight: 600 }}>Login</Link>
+              <Link to="/signup" style={{ textDecoration: "none", color: "#27ae60", fontWeight: 600 }}>Signup</Link>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Tip */}
@@ -496,5 +538,3 @@ const btnMini = {
   cursor: "pointer",
   background: "rgba(255,255,255,0.8)",
 };
-
-export default Home;
